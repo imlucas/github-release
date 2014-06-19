@@ -60,7 +60,7 @@ function postDist(token, src, dest, release, fn){
       if(err) return fn(err);
       var asset = JSON.parse(body);
 
-      if(asset.errors.length > 0){
+      if(asset.errors){
         err = asset.errors[0];
         return fn(new Error(err.resource + ': ' + err.code + ' (invalid '+err.field+')'));
       }
