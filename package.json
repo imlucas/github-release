@@ -1,0 +1,24 @@
+{
+  "name": "github-release",
+  "version": "0.0.0",
+  "author": "Lucas Hrabovsky <hrabovsky.lucas@gmail.com> (http://imlucas.com)",
+  "description": "Upload assets to existing/new github releases",
+  "scripts": {
+    "test": "mocha"
+  },
+  "homepage": "http://github.com/imlucas/github-release",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/imlucas/github-release.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "debug": "^1.0.2",
+    "through2": "^0.5.1",
+    "request": "^2.36.0",
+    "mime": "^1.2.11"
+  },
+  "devDependencies": {
+    "mocha": "^1.20.1"
+  }
+}
