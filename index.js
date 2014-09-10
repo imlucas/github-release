@@ -2,6 +2,7 @@
 
 var request = require('request'),
   fs = require('fs'),
+  os = require('os'),
   path = require('path'),
   through = require('through2'),
   mime = require('mime'),
@@ -9,12 +10,10 @@ var request = require('request'),
 
 
 function upload(token, repo, tag, src, dest, fn){
-  debug('upload', {repo: repo, tag: tag, src: src, dest: dest});
+  debug('fetching current releases for', repo);
   getReleases(token, repo, function(err, releases){
     if(err) return fn(err);
-
     var release = releases.filter(function(r){return r.tag_name === tag;})[0];
-
     if(release) return postDist(token, src, dest, release, fn);
 
     createRelease(token, repo, tag, '> @todo', function(err, release){
@@ -25,6 +24,7 @@ function upload(token, repo, tag, src, dest, fn){
 }
 
 function postDist(token, src, dest, release, fn){
+  debug('uploading %s to release %j', dest, release);
   fs.readFile(src, function(err, buf){
     var opts = {
         url: release.upload_url.replace('{?name}', ''),
@@ -45,7 +45,7 @@ function postDist(token, src, dest, release, fn){
       }
       release.asset = asset;
 
-      fn(null, asset);
+      fn(null, release);
     });
   });
 }
@@ -58,6 +58,7 @@ function createRelease(token, repo, tag, body, fn){
     body: body
   };
   var url = 'https://api.github.com/repos/' + repo + '/releases';
+  debug('release does not exist so creating a draft %j', data);
   request.post(url, {
     qs: {access_token: token},
     body: JSON.stringify(data),
@@ -79,20 +80,29 @@ function getReleases(token, repo, fn){
 }
 
 module.exports = function(pkg){
-  var repo = /git:\/\/github.com\/([\w\/\-]+)\.git/.exec(pkg.repository.url)[1],
-    token = process.env.GITHUB_TOKEN,
-    tag = 'v' + pkg.version,
-    src,
-    dest;
-
   return through.obj(function(file, enc, fn){
-    src = file.path;
-    dest = path.basename(src);
+    if(!pkg.repository || !pkg.repository.url){
+      return fn(new Error('Missing `repository.url` in package.json'));
+    }
+    var repo = /git:\/\/github.com\/([\w\/\-]+)\.git/.exec(pkg.repository.url)[1],
+      token = process.env.GITHUB_TOKEN,
+      tag = 'v' + pkg.version,
+      dest = pkg.name + '_' + os.platform() + '_' +
+        os.arch() + ((os.platform() === 'win32') ? '.exe' : ''),
+      src = file.path;
 
-    upload(token, repo, tag, src, dest, function(err, res){
+    debug('uploading ' + pkg.name + '@' + pkg.version + ' ' + dest);
+    upload(token, repo, tag, src, dest, function(err, release){
       if(err) return fn(err);
 
-      debug('Uploaded asset for release ' + tag, res);
+      debug('uploaded asset successfully %j', release.asset);
+      file.github = {
+        release: release,
+        src: src,
+        dest: dest,
+        repo: repo,
+        tag: tag
+      };
       this.push(file);
       fn();
     }.bind(this));
